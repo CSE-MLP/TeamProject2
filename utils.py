@@ -52,9 +52,9 @@ def get_args():
     parser.add_argument('--epochs', type=int, default=3, help='Number of training epochs')
 
     # 스케줄러 관련
-    parser.add_argument('--steps_per_epoch', type=int, default=1797, help='Steps per epoch')
-    parser.add_argument('--num_training_steps', type=int, default=5391, help='Total number of training steps')
-    parser.add_argument('--num_warmup_steps', type=int, default=269, help='Number of warmup steps')
+    parser.add_argument('--steps_per_epoch', type=int, default=225, help='Steps per epoch') # 57477(학습 데이터 수) / 256 (배치 사이즈)
+    parser.add_argument('--num_training_steps', type=int, default=675, help='Total number of training steps') # 225 (steps_per_epoch) * 3 (epochs)
+    parser.add_argument('--num_warmup_steps', type=int, default=33, help='Number of warmup steps') # 675 (num_training_steps) * 0.05 (warmup 비율)
     parser.add_argument('--num_cycles', type=float, default=0.5, help='Number of cosine cycles')
 
     # 옵티마이저 관련
