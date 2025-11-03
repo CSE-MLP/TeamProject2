@@ -40,7 +40,7 @@ def pad_collate_fn_OID(batch, pad_token_id=0):
     input_ids_list, labels = zip(*batch)
 
     # 시퀀스 길이 맞추기 (패딩)
-    input_ids_padded = pad_sequence(input_ids_padded, batch_first=True, padding_value=pad_token_id)
+    input_ids_padded = pad_sequence(input_ids_list, batch_first=True, padding_value=pad_token_id)
 
     # attention mask 생성 (패딩이 아닌 부분 = 1)
     attention_mask = (input_ids_padded != pad_token_id).long()
