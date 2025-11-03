@@ -74,14 +74,14 @@ def get_args():
 
     # 기본 경로 자동 설정
     if args.train_path is None:
-        args.train_path = os.path.join(args.base_path, '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/train.csv')
+        args.train_path = os.path.join('/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/train.csv')
     if args.test_path is None:
-        args.test_path = os.path.join(args.base_path, '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/test.csv')
+        args.test_path = os.path.join('/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/test.csv')
     if args.sample_path is None:
-        args.sample_path = os.path.join(args.base_path, '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/sample_submission.csv')
+        args.sample_path = os.path.join('/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/sample_submission.csv')
     if args.out_path is None:
-        args.out_path = os.path.join(args.base_path, '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/submission.csv')
+        args.out_path = os.path.join('/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/llm-classification-finetuning/submission.csv')
     if args.chkpt_path is None:
-        args.chkpt_path = os.path.join(args.base_path, '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/chkpoint')
+        args.chkpt_path = os.path.join('/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data/chkpoint')
 
     return args
