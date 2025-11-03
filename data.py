@@ -49,7 +49,7 @@ def pad_collate_fn_OID(batch, pad_token_id=0):
     labels = torch.stack(labels)
 
     # 반환
-    return input_ids_list, attention_mask, labels
+    return input_ids_padded, attention_mask, labels
 
 
 class TwoInutDataset(Dataset):
