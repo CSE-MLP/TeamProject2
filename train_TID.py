@@ -17,7 +17,7 @@ from peft import LoraConfig
 
 from utils import set_seed, save, accuracy, get_args
 from model import BertClassification
-from data import CombineThreeSentencesDataset, pad_collate_fn
+from data import TwoInutDataset, pad_collate_fn_TID
 
 
 # BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'

@@ -10,7 +10,7 @@ from transformers import AutoModel
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from peft.utils.other import TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING
 
-class BertClassification(nn.Module):
+class OIDBertClassification(nn.Module):
     def __init__(
       self,
       num_labels = 3,

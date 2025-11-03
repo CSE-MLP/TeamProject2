@@ -69,6 +69,8 @@ def get_args():
     # 기타 설정
     parser.add_argument('--amp', action='store_true', help='Use automatic mixed precision (GradScaler)')
     parser.add_argument('--grad_clip', type=float, default=1.0, help='Gradient clipping threshold')
+    parser.add_argument('--quantization', action='store_true', help='Use quantization')
+    parser.add_argument('--lora', action='store_true', help='Use lora')
 
     args = parser.parse_args()
 
