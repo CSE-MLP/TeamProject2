@@ -1,7 +1,7 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
-class LLMResponseDataset(Dataset):
-    def __init__(self,df,tokenizer,max_length=2000):
+from torch.utils.data import Dataset
+class CombineThreeSentencesDataset(Dataset):
+    def __init__(self,df,tokenizer,max_length=170):
         super().__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length

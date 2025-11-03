@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.cuda.amp import autocast, GradScaler
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 from transformers import get_cosine_schedule_with_warmup
 from transformers import AutoTokenizer,BitsAndBytesConfig
@@ -17,7 +17,7 @@ from peft import LoraConfig
 
 from utils import set_seed, save, accuracy, get_args
 from model import BertClassification
-from data import LLMResponseDataset, pad_collate_fn
+from data import CombineThreeSentencesDataset, pad_collate_fn
 
 
 # BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
-        LLMResponseDataset(df_train,tokenizer,max_length=max_length),
+        CombineThreeSentencesDataset(df_train,tokenizer,max_length=max_length),
         batch_size=batch_size,
         shuffle=True,
         num_workers=2,
