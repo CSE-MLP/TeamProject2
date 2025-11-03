@@ -63,7 +63,7 @@ if __name__ == '__main__':
         shuffle=True,
         num_workers=2,
         pin_memory=True,
-        collate_fn=lambda b: pad_collate_fn_OID(b, pad_id=tokenizer.pad_token_id)
+        collate_fn=lambda b: pad_collate_fn_OID(b, pad_token_id=tokenizer.pad_token_id)
     )
     total_steps = epochs * len(train_loader)
     warmup_steps = int(0.05 * total_steps)
