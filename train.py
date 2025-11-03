@@ -47,7 +47,6 @@ from data import CombineThreeSentencesDataset, pad_collate_fn
 ################################## 학습 시작 #############################
 if __name__ == '__main__':
     args = get_args()
-    BASE_PATH = args.base_path
     TRAIN_PATH = args.train_path
     TEST_PATH = args.test_path
     SAMPLE_PATH = args.sample_path
