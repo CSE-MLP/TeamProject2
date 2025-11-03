@@ -89,6 +89,8 @@ if __name__ == '__main__':
     # 데이터 로더
     df = pd.read_csv(TRAIN_PATH)
     df_train, df_valid = train_test_split(df, test_size=0.2, random_state=seed)
+    df_train = df_train.reset_index(drop=True)
+    df_valid = df_valid.reset_index(drop=True)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
@@ -103,7 +105,7 @@ if __name__ == '__main__':
     valid_loader = DataLoader(
         OneInputDataset(df_valid,tokenizer,max_length=max_length),
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=2,
         pin_memory=True,
         collate_fn=lambda b: pad_collate_fn_OID(b, pad_token_id=tokenizer.pad_token_id)
