@@ -68,9 +68,10 @@ class OIDBertClassification(nn.Module):
             device = next(self.model.parameters()).device
             input_ids = input_ids.to(device)
             attention_mask = attention_mask.to(device)
-        h = self.model(input_ids=input_ids, attention_mask=attention_mask)
-        z = self._pool(h, attention_mask)
-
+        h = self.encode(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
         z = self._pool(h, attention_mask)
         z = self.dropout(z)
         logits = self.classifier(z)
