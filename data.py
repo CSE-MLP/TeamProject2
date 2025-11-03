@@ -13,7 +13,7 @@ class OneInputDataset(Dataset):
         self.prompts = df.prompt.astype(str).tolist()
         self.resp_a = df.response_a.astype(str).tolist()
         self.resp_b = df.response_b.astype(str).tolist()
-        self.labels = torch.tensor(df.winner_model_b + 2*df.winner_tie, dtype=torch.long)
+        self.labels = torch.tensor(df.winner_model_b.astype(int) + 2*df.winner_tie.astype(int), dtype=torch.long)
 
         # 토큰 id
         self.cls_id = getattr(tokenizer, "cls_token_id", None)
@@ -63,7 +63,7 @@ class TwoInputDataset(Dataset):
         self.prompts = df.prompt.astype(str).tolist()
         self.resp_a = df.response_a.astype(str).tolist()
         self.resp_b = df.response_b.astype(str).tolist()
-        self.labels = torch.tensor(df.winner_model_b + 2*df.winner_tie, dtype=torch.long)
+        self.labels = torch.tensor(df.winner_model_b.astype(int) + 2*df.winner_tie.astype(int), dtype=torch.long)
 
         # 토큰 id
         self.cls_id = getattr(tokenizer, "cls_token_id", None)
