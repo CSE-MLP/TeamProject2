@@ -52,7 +52,7 @@ def pad_collate_fn_OID(batch, pad_token_id=0):
     return input_ids_padded, attention_mask, labels
 
 
-class TwoInutDataset(Dataset):
+class TwoInputDataset(Dataset):
     def __init__(self,df,tokenizer,max_length=170):
         super().__init__()
         self.tokenizer = tokenizer

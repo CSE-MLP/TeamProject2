@@ -3,6 +3,7 @@ import time
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 import torch
 import torch.nn as nn
@@ -19,6 +20,44 @@ from utils import set_seed, save, accuracy, get_args
 from model import OIDBertClassification
 from data import OneInputDataset, pad_collate_fn_OID
 
+# BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
+# TRAIN_PATH  = os.path.join(BASE_PATH, 'llm-classification-finetuning/train.csv')
+# TEST_PATH   = os.path.join(BASE_PATH, 'llm-classification-finetuning/test.csv')
+# SAMPLE_PATH = os.path.join(BASE_PATH, 'llm-classification-finetuning/sample_submission.csv')
+# OUT_PATH = os.path.join(BASE_PATH, 'llm-classification-finetuning/submission.csv')
+# CHKPT_PATH = os.path.join(BASE_PATH, 'chkpoint')
+
+# device = "cuda"
+# seed = 42
+# batch_size = 32
+# lr = 2e-5
+# epochs = 3
+# betas=(0.9, 0.999)
+# weight_decay=0.01
+# label_smoothing=0.05
+# model_name = "microsoft/deberta-v3-small"
+# max_length = 600 # tokenizer 최대 길이
+# amp = False # GradScaler 사용 여부
+# grad_clip=1.0 # 기울기 손실 방지
+# quantization = True
+# lora = True
+
+@torch.no_grad()
+def evaluate(model, loader, device, criterion):
+    model.eval()
+    total_loss, total_acc, n = 0.0, 0.0, 0
+    for input_ids, attention_mask, labels in loader:
+        bs = labels.size(0)
+        input_ids = input_ids.to(device)
+        attention_mask = attention_mask.to(device)
+        labels = labels.to(device)
+        logits = model(input_ids, attention_mask)
+        loss = criterion(logits, labels)
+        
+        total_loss += loss.item() * bs
+        total_acc  += accuracy(logits, labels) * bs
+        n += bs
+    return total_loss / n, total_acc / n
 
 if __name__ == '__main__':
     args = get_args()
@@ -34,12 +73,6 @@ if __name__ == '__main__':
     lr = args.lr
     epochs = args.epochs
 
-    
-    steps_per_epoch = args.steps_per_epoch
-    num_training_steps = args.num_training_steps
-    num_warmup_steps = args.num_warmup_steps
-    num_cycles = args.num_cycles
-
     betas = args.betas
     weight_decay = args.weight_decay
     label_smoothing = args.label_smoothing
@@ -54,7 +87,9 @@ if __name__ == '__main__':
 
     set_seed(seed)
     # 데이터 로더
-    df_train = pd.read_csv(TRAIN_PATH)
+    df = pd.read_csv(TRAIN_PATH)
+    df_train, df_valid = train_test_split(df, test_size=0.2, random_state=seed)
+
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
@@ -65,9 +100,16 @@ if __name__ == '__main__':
         pin_memory=True,
         collate_fn=lambda b: pad_collate_fn_OID(b, pad_token_id=tokenizer.pad_token_id)
     )
+    valid_loader = DataLoader(
+        OneInputDataset(df_valid,tokenizer,max_length=max_length),
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=2,
+        pin_memory=True,
+        collate_fn=lambda b: pad_collate_fn_OID(b, pad_token_id=tokenizer.pad_token_id)
+    )
     total_steps = epochs * len(train_loader)
     warmup_steps = int(0.05 * total_steps)
-
 
 
     ########### 양자화
@@ -88,7 +130,7 @@ if __name__ == '__main__':
             lora_alpha=16,
             lora_dropout=0.05,
             bias="none",
-            target_modules=["query_proj", "key_proj", "value_proj", "dense"],  # 범위 제한
+            target_modules=["query_proj", "key_proj", "value_proj", "dense"],
         )
     #############
     # 모델
@@ -105,7 +147,7 @@ if __name__ == '__main__':
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.AdamW(trainable_params, lr=lr, weight_decay=weight_decay, betas=betas)
     # 스케줄러
-    scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps, num_cycles)
+    scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps, 0.5)
     # 스케일러
     scaler = GradScaler(enabled=amp)
     # 손실함수
@@ -144,6 +186,8 @@ if __name__ == '__main__':
             n += bs
         train_loss /= n; train_acc /= n
         current_lr = optimizer.param_groups[0]["lr"]
+        val_loss, val_acc = evaluate(model, valid_loader, device, criterion)
+        
         elapsed = time.time() - epoch_start
-        print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
+        print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
         save(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}.ckpt"), model, optimizer, scheduler, epoch)

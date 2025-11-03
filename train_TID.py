@@ -3,6 +3,7 @@ import time
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 import torch
 import torch.nn as nn
@@ -16,9 +17,8 @@ from transformers import AutoTokenizer,BitsAndBytesConfig
 from peft import LoraConfig
 
 from utils import set_seed, save, accuracy, get_args
-from model import BertClassification
-from data import TwoInutDataset, pad_collate_fn_TID
-
+from model import TIDBertClassification
+from data import TwoInputDataset, pad_collate_fn_TID
 
 # BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
 # TRAIN_PATH  = os.path.join(BASE_PATH, 'llm-classification-finetuning/train.csv')
@@ -30,12 +30,8 @@ from data import TwoInutDataset, pad_collate_fn_TID
 # device = "cuda"
 # seed = 42
 # batch_size = 32
-# lr = 2e-5
+# lr = 2e-4
 # epochs = 3
-# steps_per_epoch = 1797 # 57477(학습 데이터 수) / 128 (배치 사이즈)
-# num_training_steps = 5391 # 1797 (steps_per_epoch) * 3 (epochs)
-# num_warmup_steps = 269 # 5391 (num_training_steps) * 0.05 (warmup 비율)
-# num_cycles = 0.5
 # betas=(0.9, 0.999)
 # weight_decay=0.01
 # label_smoothing=0.05
@@ -43,8 +39,28 @@ from data import TwoInutDataset, pad_collate_fn_TID
 # max_length = 600 # tokenizer 최대 길이
 # amp = False # GradScaler 사용 여부
 # grad_clip=1.0 # 기울기 손실 방지
+# quantization = True
+# lora = True
 
-################################## 학습 시작 #############################
+@torch.no_grad()
+def evaluate(model, loader, device, criterion):
+    model.eval()
+    total_loss, total_acc, n = 0.0, 0.0, 0
+    for input_ids1, attention_mask1, input_ids2, attention_mask2, labels in loader:
+        bs = labels.size(0)
+        input_ids1 = input_ids1.to(device)
+        attention_mask1 = attention_mask1.to(device)
+        input_ids2 = input_ids2.to(device)
+        attention_mask2 = attention_mask2.to(device)
+        labels = labels.to(device)
+        logits = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
+        loss = criterion(logits, labels)
+        
+        total_loss += loss.item() * bs
+        total_acc  += accuracy(logits, labels) * bs
+        n += bs
+    return total_loss / n, total_acc / n
+
 if __name__ == '__main__':
     args = get_args()
     TRAIN_PATH = args.train_path
@@ -59,11 +75,6 @@ if __name__ == '__main__':
     lr = args.lr
     epochs = args.epochs
 
-    steps_per_epoch = args.steps_per_epoch
-    num_training_steps = args.num_training_steps
-    num_warmup_steps = args.num_warmup_steps
-    num_cycles = args.num_cycles
-
     betas = args.betas
     weight_decay = args.weight_decay
     label_smoothing = args.label_smoothing
@@ -73,42 +84,62 @@ if __name__ == '__main__':
 
     amp = args.amp
     grad_clip = args.grad_clip
+    quantization = args.quantization
+    lora = args.lora
 
     set_seed(seed)
     # 데이터 로더
-    df_train = pd.read_csv(TRAIN_PATH)
+    df = pd.read_csv(TRAIN_PATH)
+    df_train, df_valid = train_test_split(df, test_size=0.2, random_state=seed)
+
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
-        CombineThreeSentencesDataset(df_train,tokenizer,max_length=max_length),
+        TwoInputDataset(df_train,tokenizer,max_length=max_length),
         batch_size=batch_size,
         shuffle=True,
         num_workers=2,
         pin_memory=True,
-        collate_fn=lambda b: pad_collate_fn(b, pad_id=tokenizer.pad_token_id)
+        collate_fn=lambda b: pad_collate_fn_TID(b, pad_token_id=tokenizer.pad_token_id)
     )
+    valid_loader = DataLoader(
+        TwoInputDataset(df_valid,tokenizer,max_length=max_length),
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=2,
+        pin_memory=True,
+        collate_fn=lambda b: pad_collate_fn_TID(b, pad_token_id=tokenizer.pad_token_id)
+    )
+    total_steps = epochs * len(train_loader)
+    warmup_steps = int(0.05 * total_steps)
+
+
     ########### 양자화
-    compute_dtype = torch.float16
-    quant_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=compute_dtype,
-    )
+    compute_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+    quant_config = None
+    if quantization:
+        quant_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=compute_dtype,
+        )
     ############ LORA
-    lora_cfg = LoraConfig(
-        r=8,                      # rank 낮춤
-        lora_alpha=16,
-        lora_dropout=0.05,
-        bias="none",
-        target_modules=["query_proj", "value_proj"],  # 범위 제한
-    )
+    lora_cfg = None
+    if lora:
+        lora_cfg = LoraConfig(
+            r=8,                      # rank 낮춤
+            lora_alpha=16,
+            lora_dropout=0.05,
+            bias="none",
+            target_modules=["query_proj", "key_proj", "value_proj", "dense"],
+        )
     #############
     # 모델
     device = device if torch.cuda.is_available() else "cpu"
-    model = BertClassification(
+    model = TIDBertClassification(
         num_labels = 3,
-        dropout = 0.0,
+        dropout = 0.1,
         lora_cfg = lora_cfg,
         quant_config = quant_config,
     )
@@ -118,31 +149,11 @@ if __name__ == '__main__':
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.AdamW(trainable_params, lr=lr, weight_decay=weight_decay, betas=betas)
     # 스케줄러
-    scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, num_cycles)
+    scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps, 0.5)
     # 스케일러
     scaler = GradScaler(enabled=amp)
     # 손실함수
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
-
-    @torch.no_grad()
-    def accuracy(logits, targets):
-        # logits: [B, C] (CrossEntropyLoss 기준)
-        # targets: [B] (인덱스) 또는 [B, C] (one-hot)
-        if targets.ndim > 1:              # one-hot or soft label
-            targets = targets.argmax(dim=1)
-        else:
-            targets = targets.long()
-        preds = logits.argmax(dim=1)
-        return (preds == targets).float().mean().item()
-    def save(path, model, optimizer, scheduler, epoch, best_metric=None):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        torch.save({
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict() if optimizer else None,
-            "scheduler": scheduler.state_dict() if scheduler else None,
-            "epoch": epoch,
-            "best_metric": best_metric,
-        }, path)
+    criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
 
     for epoch in range(1, epochs+1):
@@ -150,31 +161,37 @@ if __name__ == '__main__':
         epoch_start = time.time()
         train_loss, train_acc, n = 0.0, 0.0, 0
 
-        for input_ids, attention_mask, labels in train_loader:
-            input_ids = input_ids.to(device)
-            attention_mask = attention_mask.to(device)
+        for input_ids1, attention_mask1, input_ids2, attention_mask2, labels in train_loader:
+            bs = labels.size(0)
+            input_ids1 = input_ids1.to(device)
+            attention_mask1 = attention_mask1.to(device)
+            input_ids2 = input_ids2.to(device)
+            attention_mask2 = attention_mask2.to(device)
             labels = labels.to(device)
 
             optimizer.zero_grad(set_to_none=True)
 
             with autocast(enabled=amp, dtype=compute_dtype):
-                logits = model(input_ids, attention_mask)
+                logits = model(input_ids1, attention_mask1, input_ids2, attention_mask2)
                 loss = criterion(logits, labels)
             scaler.scale(loss).backward()
 
             # grad_clip 적용
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            if grad_clip and grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
 
             scaler.step(optimizer)
             scaler.update()
             scheduler.step()
 
-            train_loss += loss.item() * batch_size
-            train_acc  += accuracy(logits, labels) * batch_size
-            n += batch_size
+            train_loss += loss.item() * bs
+            train_acc  += accuracy(logits, labels) * bs
+            n += bs
         train_loss /= n; train_acc /= n
         current_lr = optimizer.param_groups[0]["lr"]
+        val_loss, val_acc = evaluate(model, valid_loader, device, criterion)
+
         elapsed = time.time() - epoch_start
-        print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
+        print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
         save(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}.ckpt"), model, optimizer, scheduler, epoch)
