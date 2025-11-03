@@ -139,7 +139,7 @@ if __name__ == '__main__':
     device = device if torch.cuda.is_available() else "cpu"
     model = OIDBertClassification(
         num_labels = 3,
-        dropout = 0.0,
+        dropout = 0.1,
         lora_cfg = lora_cfg,
         quant_config = quant_config,
     )

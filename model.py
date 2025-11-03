@@ -18,6 +18,8 @@ class OIDBertClassification(nn.Module):
 
     ) -> None:
         super().__init__()
+        self.config = AutoConfig.from_pretrained(model_name)
+
         if quant_config is not None:
             model = AutoModel.from_pretrained(
                 model_name,
@@ -30,9 +32,11 @@ class OIDBertClassification(nn.Module):
         if lora_cfg is not None:
             self.model = get_peft_model(self.model, lora_cfg)
             self.model.print_trainable_parameters()  # 디버그: LoRA 파라미터 수 확인
+        
+        hidden = self.config.hidden_size
         self.pooling = pooling.lower()
         self.dropout = nn.Dropout(dropout)
-        self.classifier = nn.Linear(self.model.config.hidden_size, num_labels)
+        self.classifier = nn.Linear(hidden, num_labels)
 
     def _pool(self, last_hidden_state: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         if self.pooling == "cls":
@@ -48,6 +52,10 @@ class OIDBertClassification(nn.Module):
             denom = mask.sum(dim=1).clamp(min=1)
             return summed / denom
 
+    def encode(self, **inputs) -> torch.Tensor:
+        outputs = self.model(**inputs)
+        return outputs.last_hidden_state
+
     def forward(
         self,
         input_ids,
@@ -61,6 +69,7 @@ class OIDBertClassification(nn.Module):
             input_ids = input_ids.to(device)
             attention_mask = attention_mask.to(device)
         h = self.model(input_ids=input_ids, attention_mask=attention_mask)
+        z = self._pool(h, attention_mask)
 
         z = self._pool(h, attention_mask)
         z = self.dropout(z)
