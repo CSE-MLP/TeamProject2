@@ -24,36 +24,39 @@ def accuracy(logits, targets):
     return (preds == targets).float().mean().item()
 
 
-def save(path, model, optimizer, scheduler, epoch, best_metric=None):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+def save(path, model, tokenizer):
+    os.makedirs(path, exist_ok=True)
     torch.save({
-        "model": model.state_dict(),
-        "optimizer": optimizer.state_dict() if optimizer else None,
-        "scheduler": scheduler.state_dict() if scheduler else None,
-        "epoch": epoch,
-        "best_metric": best_metric,
-    }, path)
+        "init_param" : model.init_param,
+        "pooling": model.pooling,
+        "dropout_state_dict": model.dropout.state_dict(),
+        "classifier_state_dict": model.classifier.state_dict(),
+    }, os.path.join(path, "checkpoint.ckpt") )
+    model.model.save_pretrained(path)
+    tokenizer.save_pretrained(path)
 
+def load(path, device, model_class, tokenizer_class):
+    state = torch.load(os.path.join(path, "checkpoint.ckpt"), map_location=device)
+    pooling = state["init_param"]["pooling"]
+    dropout = state["init_param"]["dropout"]
+    num_labels = state["init_param"]["num_labels"]
 
-def load(path, model, optimizer=None, scheduler=None, device="cpu"):
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Checkpoint not found at {path}")
+    model = model_class(
+        model_name = path,
+        pooling=pooling,
+        dropout=dropout,
+        num_labels=num_labels
+    )
 
-    checkpoint = torch.load(path, map_location=device)
-    model.load_state_dict(checkpoint["model"])
-    model.to(device)
+    model.init_param = state["init_param"]
+    model.pooling = state["pooling"]
+    model.dropout.load_state_dict(state["dropout_state_dict"])
+    model.classifier.load_state_dict(state["classifier_state_dict"])
 
-    if optimizer and checkpoint.get("optimizer") is not None:
-        optimizer.load_state_dict(checkpoint["optimizer"])
+    # 4. tokenizer 로드
+    tokenizer = tokenizer_class.from_pretrained(path)
 
-    if scheduler and checkpoint.get("scheduler") is not None:
-        scheduler.load_state_dict(checkpoint["scheduler"])
-
-    epoch = checkpoint.get("epoch", 0)
-    best_metric = checkpoint.get("best_metric", None)
-
-    print(f"✅ Loaded checkpoint from {path} (epoch {epoch})")
-    return model, optimizer, scheduler, epoch, best_metric
+    return model, tokenizer
 
 
 def get_args():

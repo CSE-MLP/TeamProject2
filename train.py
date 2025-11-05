@@ -15,7 +15,7 @@ from transformers import get_cosine_schedule_with_warmup
 from transformers import MobileBertTokenizer, MobileBertForSequenceClassification
 
 from utils import set_seed, save, accuracy, get_args
-from model import TIDBertClassification
+from model import TIDMobileBertClassification
 from data import TwoInputDatasetv2, pad_collate_fn_TID
 
 # BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
@@ -78,7 +78,6 @@ if __name__ == '__main__':
     label_smoothing = args.label_smoothing
 
     model_name = args.model_name
-    max_length = args.max_length
 
     amp = args.amp
     grad_clip = args.grad_clip
@@ -115,8 +114,10 @@ if __name__ == '__main__':
     #############
     # 모델
     device = device if torch.cuda.is_available() else "cpu"
-    model = MobileBertForSequenceClassification.from_pretrained(
-        model_name,
+    model = TIDMobileBertClassification(
+        model_name = model_name,
+        pooling="cls",
+        dropout=0.1,
         num_labels=3
     )
     model.to(device)
@@ -169,5 +170,4 @@ if __name__ == '__main__':
         elapsed = time.time() - epoch_start
         print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
         
-        model.save_pretrained(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}"))
-        tokenizer.save_pretrained(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}"))
+        save(CHKPT_PATH, model, tokenizer)

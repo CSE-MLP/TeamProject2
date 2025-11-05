@@ -168,15 +168,16 @@ class TIDBertClassification(nn.Module):
 class TIDMobileBertClassification(nn.Module):
     def __init__(
         self,
+        model_name = "google/mobilebert-uncased",
         pooling: str = "cls",  # one of {"cls", "mean", "max"}
         dropout: float = 0.1,
         num_labels: int = 3,
     ):
         super().__init__()
-        self.config = MobileBertConfig()
-        self.model = MobileBertModel(self.config)
+        self.model = MobileBertModel.from_pretrained(model_name)
 
-        hidden = self.config.hidden_size
+        hidden = self.model.config.hidden_size
+        self.init_param = {"pooling":pooling, "dropout":dropout, "num_labels":num_labels}
         self.pooling = pooling.lower()
         self.dropout = nn.Dropout(dropout)
 
