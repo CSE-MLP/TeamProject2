@@ -82,8 +82,6 @@ if __name__ == '__main__':
 
     amp = args.amp
     grad_clip = args.grad_clip
-    quantization = args.quantization
-    lora = args.lora
 
     set_seed(seed)
     # 데이터 로더
@@ -120,6 +118,7 @@ if __name__ == '__main__':
         num_labels = 3,
         dropout = 0.1,
     )
+    model.model.from_pretrained("google/mobilebert-uncased")
     model.to(device)
     # 옵티마이저
     trainable_params = [p for p in model.parameters() if p.requires_grad]
