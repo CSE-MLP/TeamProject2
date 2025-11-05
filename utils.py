@@ -34,6 +34,28 @@ def save(path, model, optimizer, scheduler, epoch, best_metric=None):
         "best_metric": best_metric,
     }, path)
 
+
+def load(path, model, optimizer=None, scheduler=None, device="cpu"):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Checkpoint not found at {path}")
+
+    checkpoint = torch.load(path, map_location=device)
+    model.load_state_dict(checkpoint["model"])
+    model.to(device)
+
+    if optimizer and checkpoint.get("optimizer") is not None:
+        optimizer.load_state_dict(checkpoint["optimizer"])
+
+    if scheduler and checkpoint.get("scheduler") is not None:
+        scheduler.load_state_dict(checkpoint["scheduler"])
+
+    epoch = checkpoint.get("epoch", 0)
+    best_metric = checkpoint.get("best_metric", None)
+
+    print(f"✅ Loaded checkpoint from {path} (epoch {epoch})")
+    return model, optimizer, scheduler, epoch, best_metric
+
+
 def get_args():
     parser = argparse.ArgumentParser(description="Fine-tuning for LLM text classification")
 
