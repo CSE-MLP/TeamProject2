@@ -165,7 +165,7 @@ class TIDBertClassification(nn.Module):
 
         return logits
 
-class TIDMobileBertClassification(nn.Module):
+class TIDAutoBertClassification(nn.Module):
     def __init__(
         self,
         model_name = "google/mobilebert-uncased",
@@ -174,7 +174,7 @@ class TIDMobileBertClassification(nn.Module):
         num_labels: int = 3,
     ):
         super().__init__()
-        self.model = MobileBertModel.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name)
 
         hidden = self.model.config.hidden_size
         self.init_param = {"pooling":pooling, "dropout":dropout, "num_labels":num_labels}

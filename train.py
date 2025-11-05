@@ -12,10 +12,10 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 
 from transformers import get_cosine_schedule_with_warmup
-from transformers import MobileBertTokenizer, MobileBertForSequenceClassification
+from transformers import AutoTokenizer
 
 from utils import set_seed, save, accuracy, get_args
-from model import TIDMobileBertClassification
+from model import TIDAutoBertClassification
 from data import TwoInputDatasetv2, pad_collate_fn_TID
 
 # BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
@@ -89,8 +89,7 @@ if __name__ == '__main__':
     df_train = df_train.reset_index(drop=True)
     df_valid = df_valid.reset_index(drop=True)
 
-    model_name = "google/mobilebert-uncased"
-    tokenizer = MobileBertTokenizer.from_pretrained(model_name, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
         TwoInputDatasetv2(df_train,tokenizer),
@@ -114,9 +113,9 @@ if __name__ == '__main__':
     #############
     # 모델
     device = device if torch.cuda.is_available() else "cpu"
-    model = TIDMobileBertClassification(
+    model = TIDAutoBertClassification(
         model_name = model_name,
-        pooling="cls",
+        pooling="mean",
         dropout=0.1,
         num_labels=3
     )
@@ -170,4 +169,4 @@ if __name__ == '__main__':
         elapsed = time.time() - epoch_start
         print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
         
-        save(CHKPT_PATH, model, tokenizer)
+        save(os.path.join(CHKPT_PATH, f"epoch_{epoch}"), model, tokenizer)
