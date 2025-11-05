@@ -102,8 +102,6 @@ class TwoInputDatasetv2(Dataset):
         # 토큰 id
         self.cls_id = getattr(tokenizer, "cls_token_id", None)
         self.sep_id = getattr(tokenizer, "sep_token_id", None)
-        self.bos_id = getattr(tokenizer, "bos_token_id", None)
-        self.eos_id = getattr(tokenizer, "eos_token_id", None)
         self.pad_id = getattr(tokenizer, "pad_token_id", None)
 
     def __len__(self):
@@ -114,8 +112,8 @@ class TwoInputDatasetv2(Dataset):
         a = self.tokenizer(self.resp_a[idx],padding=True,truncation=True,max_length=440,add_special_tokens=False,return_tensors=None)
         b = self.tokenizer(self.resp_b[idx],padding=True,truncation=True,max_length=440,add_special_tokens=False,return_tensors=None)
 
-        ids1 = [self.cls_id] + p["input_ids"] + [self.sep_id] + a["input_ids"] + [self.eos_id]
-        ids2 = [self.cls_id] + p["input_ids"] + [self.sep_id] + b["input_ids"] + [self.eos_id]
+        ids1 = [self.cls_id] + p["input_ids"] + [self.sep_id] + a["input_ids"] + [self.sep_id]
+        ids2 = [self.cls_id] + p["input_ids"] + [self.sep_id] + b["input_ids"] + [self.sep_id]
         input_ids1 = torch.tensor(ids1, dtype=torch.long)
         input_ids2 = torch.tensor(ids2, dtype=torch.long)
         label = self.labels[idx]
