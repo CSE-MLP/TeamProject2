@@ -12,7 +12,7 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 
 from transformers import get_cosine_schedule_with_warmup
-from transformers import MobileBertTokenizer
+from transformers import MobileBertTokenizer, MobileBertForSequenceClassification
 
 from utils import set_seed, save, accuracy, get_args
 from model import TIDBertClassification
@@ -90,7 +90,8 @@ if __name__ == '__main__':
     df_train = df_train.reset_index(drop=True)
     df_valid = df_valid.reset_index(drop=True)
 
-    tokenizer = MobileBertTokenizer.from_pretrained("google/mobilebert-uncased", use_fast=False)
+    model_name = "google/mobilebert-uncased"
+    tokenizer = MobileBertTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
         TwoInputDatasetv2(df_train,tokenizer),
@@ -114,11 +115,10 @@ if __name__ == '__main__':
     #############
     # 모델
     device = device if torch.cuda.is_available() else "cpu"
-    model = TIDBertClassification(
-        num_labels = 3,
-        dropout = 0.1,
+    model = MobileBertForSequenceClassification.from_pretrained(
+        model_name,
+        num_labels=3
     )
-    model.model.from_pretrained("google/mobilebert-uncased")
     model.to(device)
     # 옵티마이저
     trainable_params = [p for p in model.parameters() if p.requires_grad]
@@ -168,4 +168,6 @@ if __name__ == '__main__':
 
         elapsed = time.time() - epoch_start
         print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
-        save(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}.ckpt"), model, optimizer, scheduler, epoch)
+        
+        model.save_pretrained(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}"))
+        tokenizer.save_pretrained(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}"))
