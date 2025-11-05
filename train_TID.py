@@ -18,7 +18,7 @@ from peft import LoraConfig
 
 from utils import set_seed, save, accuracy, get_args
 from model import TIDBertClassification
-from data import TwoInputDataset, pad_collate_fn_TID
+from data import TwoInputDataset, TwoInputDatasetv2, pad_collate_fn_TID
 
 # BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
 # TRAIN_PATH  = os.path.join(BASE_PATH, 'llm-classification-finetuning/train.csv')
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
-        TwoInputDataset(df_train,tokenizer,max_length=max_length),
+        TwoInputDatasetv2(df_train,tokenizer,max_length=max_length),
         batch_size=batch_size,
         shuffle=True,
         num_workers=2,
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         collate_fn=lambda b: pad_collate_fn_TID(b, pad_token_id=tokenizer.pad_token_id)
     )
     valid_loader = DataLoader(
-        TwoInputDataset(df_valid,tokenizer,max_length=max_length),
+        TwoInputDatasetv2(df_valid,tokenizer,max_length=max_length),
         batch_size=batch_size,
         shuffle=False,
         num_workers=2,
