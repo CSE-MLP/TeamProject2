@@ -88,7 +88,7 @@ class TwoInputDataset(Dataset):
         return input_ids1, input_ids2, label
 
 class TwoInputDatasetv2(Dataset):
-    def __init__(self,df,tokenizer):
+    def __init__(self,df,tokenizer,max_length=None):
         super().__init__()
         self.tokenizer = tokenizer
 
