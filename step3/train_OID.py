@@ -38,9 +38,6 @@ def evaluate(model, loader, device, criterion):
 if __name__ == '__main__':
     args = get_args()
     TRAIN_PATH = args.train_path
-    TEST_PATH = args.test_path
-    SAMPLE_PATH = args.sample_path
-    OUT_PATH = args.out_path
     CHKPT_PATH = args.chkpt_path
 
     device = args.device
