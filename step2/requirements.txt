@@ -1,0 +1,10 @@
+pandas
+numpy
+torch==2.9.0
+transformers==4.57.1
+joblib
+tqdm
+scikit-learn
+sentencepiece
+protobuf
+kaggle
