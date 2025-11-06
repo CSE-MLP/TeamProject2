@@ -12,35 +12,11 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 
 from transformers import get_cosine_schedule_with_warmup
-from transformers import AutoTokenizer,BitsAndBytesConfig
-
-from peft import LoraConfig
+from transformers import AutoTokenizer
 
 from utils import set_seed, save, accuracy, get_args
-from model import OIDBertClassification
+from model import OIDAutoBertClassification
 from data import OneInputDataset, pad_collate_fn_OID
-
-# BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
-# TRAIN_PATH  = os.path.join(BASE_PATH, 'llm-classification-finetuning/train.csv')
-# TEST_PATH   = os.path.join(BASE_PATH, 'llm-classification-finetuning/test.csv')
-# SAMPLE_PATH = os.path.join(BASE_PATH, 'llm-classification-finetuning/sample_submission.csv')
-# OUT_PATH = os.path.join(BASE_PATH, 'llm-classification-finetuning/submission.csv')
-# CHKPT_PATH = os.path.join(BASE_PATH, 'chkpoint')
-
-# device = "cuda"
-# seed = 42
-# batch_size = 32
-# lr = 2e-5
-# epochs = 3
-# betas=(0.9, 0.999)
-# weight_decay=0.01
-# label_smoothing=0.05
-# model_name = "microsoft/deberta-v3-small"
-# max_length = 600 # tokenizer 최대 길이
-# amp = False # GradScaler 사용 여부
-# grad_clip=1.0 # 기울기 손실 방지
-# quantization = True
-# lora = True
 
 @torch.no_grad()
 def evaluate(model, loader, device, criterion):
@@ -82,8 +58,6 @@ if __name__ == '__main__':
 
     amp = args.amp
     grad_clip = args.grad_clip
-    quantization = args.quantization
-    lora = args.lora
 
     set_seed(seed)
     # 데이터 로더
@@ -113,35 +87,14 @@ if __name__ == '__main__':
     total_steps = epochs * len(train_loader)
     warmup_steps = int(0.05 * total_steps)
 
-
-    ########### 양자화
-    compute_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    quant_config = None
-    if quantization:
-        quant_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=compute_dtype,
-        )
-    ############ LORA
-    lora_cfg = None
-    if lora:
-        lora_cfg = LoraConfig(
-            r=8,                      # rank 낮춤
-            lora_alpha=16,
-            lora_dropout=0.05,
-            bias="none",
-            target_modules=["query_proj", "key_proj", "value_proj", "dense"],
-        )
     #############
     # 모델
     device = device if torch.cuda.is_available() else "cpu"
-    model = OIDBertClassification(
-        num_labels = 3,
-        dropout = 0.1,
-        lora_cfg = lora_cfg,
-        quant_config = quant_config,
+    model = OIDAutoBertClassification(
+        model_name = model_name,
+        pooling="mean",
+        dropout=0.1,
+        num_labels=3
     )
     model.to(device)
     # 옵티마이저
@@ -154,7 +107,6 @@ if __name__ == '__main__':
     scaler = GradScaler(enabled=amp)
     # 손실함수
     criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
-
 
     for epoch in range(1, epochs+1):
         model.train()
@@ -169,7 +121,7 @@ if __name__ == '__main__':
 
             optimizer.zero_grad(set_to_none=True)
 
-            with autocast(enabled=amp, dtype=compute_dtype):
+            with autocast(enabled=amp):
                 logits = model(input_ids, attention_mask)
                 loss = criterion(logits, labels)
             scaler.scale(loss).backward()
@@ -192,4 +144,4 @@ if __name__ == '__main__':
         
         elapsed = time.time() - epoch_start
         print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
-        save(os.path.join(CHKPT_PATH, f"epoch{epoch:02d}.ckpt"), model, optimizer, scheduler, epoch)
+        save(os.path.join(CHKPT_PATH, f"epoch_{epoch}"), model, tokenizer)

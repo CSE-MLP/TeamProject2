@@ -16,29 +16,7 @@ from transformers import AutoTokenizer
 
 from utils import set_seed, save, accuracy, get_args
 from model import TIDAutoBertClassification
-from data import TwoInputDatasetv2, pad_collate_fn_TID
-
-# BASE_PATH = '/content/drive/MyDrive/머신러닝프로젝트01분반 team12/project2/data'
-# TRAIN_PATH  = os.path.join(BASE_PATH, 'llm-classification-finetuning/train.csv')
-# TEST_PATH   = os.path.join(BASE_PATH, 'llm-classification-finetuning/test.csv')
-# SAMPLE_PATH = os.path.join(BASE_PATH, 'llm-classification-finetuning/sample_submission.csv')
-# OUT_PATH = os.path.join(BASE_PATH, 'llm-classification-finetuning/submission.csv')
-# CHKPT_PATH = os.path.join(BASE_PATH, 'chkpoint')
-
-# device = "cuda"
-# seed = 42
-# batch_size = 32
-# lr = 2e-4
-# epochs = 3
-# betas=(0.9, 0.999)
-# weight_decay=0.01
-# label_smoothing=0.05
-# model_name = "microsoft/deberta-v3-small"
-# max_length = 600 # tokenizer 최대 길이
-# amp = False # GradScaler 사용 여부
-# grad_clip=1.0 # 기울기 손실 방지
-# quantization = True
-# lora = True
+from data import TwoInputDataset, pad_collate_fn_TID
 
 @torch.no_grad()
 def evaluate(model, loader, device, criterion):
@@ -92,7 +70,7 @@ if __name__ == '__main__':
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
     train_loader = DataLoader(
-        TwoInputDatasetv2(df_train,tokenizer),
+        TwoInputDataset(df_train,tokenizer),
         batch_size=batch_size,
         shuffle=True,
         num_workers=2,
@@ -100,7 +78,7 @@ if __name__ == '__main__':
         collate_fn=lambda b: pad_collate_fn_TID(b, pad_token_id=tokenizer.pad_token_id)
     )
     valid_loader = DataLoader(
-        TwoInputDatasetv2(df_valid,tokenizer),
+        TwoInputDataset(df_valid,tokenizer),
         batch_size=batch_size,
         shuffle=False,
         num_workers=2,
@@ -168,5 +146,4 @@ if __name__ == '__main__':
 
         elapsed = time.time() - epoch_start
         print(f"[EPOCH {epoch:02d}] train_loss : {train_loss}, train_acc : {train_acc}, val_loss : {val_loss}, val_acc : {val_acc}, lr : {current_lr}, elapsed_time : {elapsed}")
-        
         save(os.path.join(CHKPT_PATH, f"epoch_{epoch}"), model, tokenizer)
